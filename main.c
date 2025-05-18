@@ -32,7 +32,7 @@ char * genBitString(int n){
   int *d = malloc((n + 1) * sizeof(int));
   int *f = malloc((n + 1) * sizeof(int));
 
-  char *bitstring = malloc((factorial(n) + 5) * sizeof(char));
+  char *bitstring = malloc((factorial(n) + 1) * sizeof(char));
 
   // Check if memory allocation was successful
   if (!bitstring || !a || !d || !f){
@@ -75,8 +75,8 @@ char * genBitString(int n){
   bitstring[bitlen] = '\0';
 
   // If desired print the bitstring and its length
-  printf("bitstring: %s\n", bitstring);
-  printf("bitlen: %d\n", bitlen);
+  //printf("bitstring: %s\n", bitstring);
+  //printf("bitlen: %d\n", bitlen);
 
   // Clean up allocated memory
   free(a);
@@ -91,36 +91,42 @@ char * genBitString(int n){
 int * generateUniversalCycle(int n){
   if (n < 2){
     int *result = malloc(sizeof(int));
-    result[0] = 1;
+    result[0] = n;
     return result;
   }
 
   // Generate Sₙ into bitstring[] 
   char * bitstring = genBitString(n);
-  int bitlen = strlen(bitstring);
-  printf("bitlen: %s\n", bitstring);
-
+  if (bitstring == NULL) return NULL;
   
-  // Step 2: walk through Sₙ and apply σₙ/σₙ₋₁
-
   // Initialize the starting permutation to n, n-1, ..., 1
   int *perm = malloc(n * sizeof(int));
   for(int i = 0; i < n; i++) perm[i] = n-i;
 
+  // Allocate space for the universal cycle
   int * UC = malloc((factorial(n) + 1) * sizeof(char));
 
-  // Step 3: output first symbol of each permutation
-  for (int i = 0; i < bitlen; i++){
+  // Check if memory allocation was successful
+  if (!UC || !perm) return NULL;
+  
+  // Walk through the bitstring and apply the σₙ/σₙ₋₁
+  // rotations to the starting permutation to generate
+  // the universal cycle
+  for (int i = 0; i < strlen(bitstring); i++){
     UC[i] = perm[0];
     if (bitstring[i] == '0') rotate_n(perm, n);
     else rotate_n_minus_1(perm, n);
   }
-  
-  
-  //printf("\n");
+ 
   
   // Clean up
   free(perm);
+
+  // Note:  Enabling this free results in a munmap_chunk(): 
+  // invalid pointer error.  I am not sure why this is happening
+  // as we only read from this memory in this function. The code 
+  // works fine without this free with a small memory leak caused 
+  // by the bitstring
   //free(bitstring);
 
   return UC;
@@ -128,101 +134,131 @@ int * generateUniversalCycle(int n){
 
 // Given U of length L and parameters n, rank the substring of length n-1
 // starting at index 'start' (circularly).  Returns a rank in [0..n!-1] or 
-// -1 if the string is invalid.
+// -1 if the string is invalid
 int rankLehmer(char *U, int L, int n, int start){
-  //fprintf(stderr,"Rank called\n");
   char used[n]; // tracks which of 1..n appear in the substring
   memset(used, 0, sizeof(char) * n); // initialize to false
-  int window[n]; // holds the n-1 symbols in numeric form
-  int w = 0;
+  int window[n], w = 0, sum = 0; 
 
-  // 1) Collect the n-1 symbols, check they’re in 1..n and distinct.
+  
+  // Collect the n-1 symbols from U and verify that 
+  // they are in 1..n and distinct
   for (int t = 0; t < n - 1; t++){
     char c = U[(start + t) % L];
-    if (c < '1' || c >= '1' + n) return -1; // out of range     
-    int x = c - '1'; // in 0..n-1
-    if (used[x]) return -1; // duplicate symbol     
-    used[x] = 1;
+
+    // Make sure that they are within 1...n
+    if (c < '1' || c >= '1' + n) return -1;     
+
+    // Convert to 0..n-1 to make indexing easier
+    int x = c - '1'; 
+    // Make sure this is not a duplicate symbol 
+    if (used[x]) return -1; 
+    used[x] = 1; // mark as seen
+    sum += x + 1; // sum of the symbols of the permutation
     window[w++] = x + 1; // store as 1..n
   }
 
-  // 2) Find the one missing symbol in 1..n
-  int missing = 0;
-  for (int k = 0; k < n; k++){
-    if (!used[k]){
-      missing = k + 1;
-      break;
-    }
-  }
+  // Find the missing symbol 1..n in the permutation using 
+  // the fact that ∑n = n(n+1)/2 and ∑window = ∑n - missing
+  // So missing = ∑n - ∑window
+  int missing = (n * (n + 1) / 2) - sum;
 
-  // 3) Build the full permutation pi[0..n-1]
+  // Now we can build the full permutation pi[0..n-1]
+  // by appending the missing symbol to the window
   int pi[n];
   for (int i = 0; i < n - 1; i++) pi[i] = window[i];
   pi[n - 1] = missing;
 
-  // 4) Compute its Lehmer‐code rank in [0..n!-1]
+  // Compute its Lehmer‐code rank in [0..n!-1]
   int rank = 0;
-  long fact = factorial(n - 1);
+  unsigned long fact = factorial(n - 1);
   for (int i = 0; i < n; i++) {
     int smaller = 0;
-    for (int j = i + 1; j < n; j++)
-      if (pi[j] < pi[i]) smaller++;
+    
+    // Count how many of the remaining symbols are smaller than pi[i]
+    for (int j = i + 1; j < n; j++) if (pi[j] < pi[i]) smaller++;
+
+    // Update the rank
     rank += smaller * fact;
     if (i < n - 1) fact /= (n - 1 - i);
   }
+  
   return rank;
 }
 
+int rankRuskeyWilliams(char *U, int L, int n, int start){
+  return 0;
+}
 // Return true if U of length L is a valid shorthand U-cycle for Π(n)
-char isUniversalCycle(char *U, int L, int n){
-  //fprintf(stderr,"in isUniversalCycle\n");
-  long must = factorial(n);
-  if (L != must) return -1;
+char isUniversalCycle(char *U, int n){
+
+  // Compute the length of U
+  int len = strlen(U);
+
+  
+  // First check if the length of U is correct
+  if (len != factorial(n)) return 0;
   
   // System error: want to use calloc here however for some reason this results
   // in a malloc(): corrupted top size error. Swtich malloc to calloc in
   // final version if it does not result in errors.
-  char *seen = (char*) malloc(L * sizeof(char));
-  for (int i = 0; i < L; i++) seen[i] = 0;
+  char *seen = (char*) malloc(len * sizeof(char));
+  for (int i = 0; i < len; i++) seen[i] = 0;
 
-  
   if (!seen) {
-    printf("Memory allocation failed\n");
-    return -1;
+    printf("Error: memory allocation failed\n");
+    return 0;
   }
-  fprintf(stderr,"in isUniversalCycle\n");
-  for (int i = 0; i < L; i++) {
-    int r = rankLehmer(U, L, n, i);
+  
+  for (int i = 0; i < len; i++) {
+    // Call ranking function
+    int r = rankLehmer(U, len, n, i);
+
+    // If the rank is invalid or we have seen this rank before
+    // then the given string is not a universal cycle
     if (r < 0 || seen[r]) {
       free(seen);
       return 0;
     }
+    
+    // Otherwise mark this rank as seen
     seen[r] = 1;
   }
+
+  // Check if we have seen all ranks and if we have then we know
+  // that the given string is a universal cycle
+  //for (int i = 0; i < len; i++) if (!seen[i]) return 0;
+
   free(seen);
   return 1;
 }
 
 int main(void){
   int n;
-  printf("Enter nn: ");
-  if (scanf("%d", &n) != 1)
-    return 0;
-  // generateSPCycle(n);
+  printf("Enter n: ");
+  scanf("%d", &n);
+
   int *UC = generateUniversalCycle(n);
+  if (UC == NULL){
+    printf("Error generating universal cycle\n");
+    return 0;
+  }
+
+  // Print the universal cycle
   printf("UC: ");
   for (int i = 0; i < (factorial(n)); i++) printf("%d", UC[i]);
   printf("\n");
+
   
-  const char *test[] = {
-      "432143124123412342314231", "4",
+  char *test[] = { 
+      "321312","3",
       "432142134132431241234231", "4",
       NULL};
-  //printf("U=\"%s\"  n=%d  -> %s\n", test[0], n, isUniversalCycle(test[0], strlen(test[0]), n) ? "YES" : "no");
+
   
   for (int i = 0; test[i]; i+=2) {
     printf("U=\"%s\"  n=%d  -> %s\n", test[i], atoi(test[i+1]),
-           isUniversalCycle(test[i], strlen(test[i]), atoi(test[i+1])) ? "YES" : "no");
+           isUniversalCycle(test[i], atoi(test[i+1])) ? "YES" : "no");
   }
 
   return 0;
