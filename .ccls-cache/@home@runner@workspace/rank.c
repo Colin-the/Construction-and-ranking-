@@ -3,7 +3,7 @@
 #include <string.h>
 
 // Recursive implementation of the Ruskey–Williams ranking algorithm
-int rankRuskeyWilliams(int *perm, int n) {
+int rankRuskeyWilliams(int *perm, int n){
     // This algorithm presumes that perm is a 
     // permutation of {1..n} and it will then split the perm
     // into αnβ where α and β are permutations of {1..n-1}
@@ -51,7 +51,58 @@ int rankRuskeyWilliams(int *perm, int n) {
 // Given U of length L and parameters n, rank the substring of length n-1
 // starting at index 'start' (circularly).  Returns a rank in [0..n!-1] or 
 // -1 if the string is invalid
-int rankLehmer(char *U, int L, int n, int start){
+int rankLehmer(int *U, int L, int n, int start){
+    char used[n]; // tracks which of 1..n appear in the substring
+    memset(used, 0, sizeof(char) * n); // initialize to false
+    int window[n-1],  sum = 0; 
+
+    for (int t = 0; t < n - 1; t++) {
+        int x = U[(start + t) % L];
+
+        // Make sure that they are within 1...n
+        if (x < 1 || x > n) {
+            return -1;
+        }
+        // Make sure this is not a duplicate symbol 
+        if (used[x-1]) {
+            return -1;
+        }
+        used[x-1] = 1; // Mark as seen
+        window[t] = x; // Store as 1..n
+        sum += x; // Add it to the running sum of the permutation
+    }
+
+    // Find the missing symbol 1..n in the permutation using 
+    // the fact that ∑n = n(n+1)/2 and ∑window = ∑n - missing
+    // So missing = ∑n - ∑window
+    int missing = (n * (n + 1) / 2) - sum;
+
+    // Now we can build the full permutation pi[0..n-1]
+    // by appending the missing symbol to the window
+    int pi[n];
+    for (int i = 0; i < n - 1; i++) pi[i] = window[i];
+    pi[n - 1] = missing;
+
+    // Compute its Lehmer‐code rank in [0..n!-1]
+    int rank = 0;
+    unsigned long fact = factorial(n - 1);
+    for (int i = 0; i < n; i++) {
+        int smaller = 0;
+        // Count how many of the remaining symbols are smaller than pi[i]
+        for (int j = i + 1; j < n; j++) if (pi[j] < pi[i]) smaller++;
+
+        // Update the rank
+        rank += smaller * fact;
+        if (i < n - 1) {
+            fact /= (n - 1 - i);
+        }
+    }
+
+    return rank;
+}
+
+
+/*int rankLehmer(char *U, int L, int n, int start){
   char used[n]; // tracks which of 1..n appear in the substring
   memset(used, 0, sizeof(char) * n); // initialize to false
   int window[n], w = 0, sum = 0; 
@@ -100,4 +151,4 @@ int rankLehmer(char *U, int L, int n, int start){
   }
 
   return rank;
-}
+}*/

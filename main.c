@@ -4,7 +4,7 @@
 
 int RuskeyWilliamsRecursive(int *alpha, int *beta, int n);
 int rankRuskeyWilliams(int *p, int n);
-int rankLehmer(char *U, int L, int n, int start);
+int rankLehmer(int *U, int L, int n, int start);
 
 // Helper function to compute n!
 unsigned long factorial(unsigned int n){
@@ -17,19 +17,6 @@ void rotate_n(int *p, int n){
   int first = p[0];
   for(int i = 0; i < n-1; i++) p[i] = p[i+1];
   p[n-1] = first;
-}
-
-// Helper function to rotate a string of size n to the right
-int * sigma(int *p, int n){
-  if (n <= 0) return NULL;
-
-  int * right = malloc(n * sizeof(int));
-  if (!right) return NULL;
-  
-  // Rotate the array to the right
-  right[0] = p[n-1];
-  for(int i = n-1; i > 0; i--) right[i] = p[i-1]; 
-  return right;
 }
 
 // Helper function to rotate a string of size n while 
@@ -148,52 +135,58 @@ int * generateUniversalCycle(int n){
   return UC;
 }
 
+// Return 1 if U[0..] of length n! is a valid shorthand U‑cycle for Π(n), 0 otherwise
+int isUniversalCycle(int *U, int L, int n){
+  unsigned long len = factorial(n);
+  if (len <= 0 || len != L) return 0;
 
-
-// Return true if U of length L is a valid shorthand U-cycle for Π(n)
-char isUniversalCycle(char *U, int n){
-
-  // Compute the length of U
-  int len = strlen(U);
-
-
-  // First check if the length of U is correct
-  if (len != factorial(n)) return 0;
-
-  // System error: want to use calloc here however for some reason this results
-  // in a malloc(): corrupted top size error. Swtich malloc to calloc in
-  // final version if it does not result in errors.
-  char *seen = (char*) malloc(len * sizeof(char));
-  for (int i = 0; i < len; i++) seen[i] = 0;
-
+  // Mark which ranks we've seen
+  char *seen = malloc(len);
   if (!seen) {
-    printf("Error: memory allocation failed\n");
-    return 0;
+      fprintf(stderr, "Error: memory allocation failed\n");
+      return 0;
   }
+  memset(seen, 0, len);
 
+  int algo = 1;
   for (int i = 0; i < len; i++) {
-    // Call ranking function
-    int r = rankLehmer(U, len, n, i);
+    // Call a ranking function
+    int rank;
+    if (algo) rank = rankLehmer(U, len, n, i);
+    else{
+      int perm[n], sum = 0;
+      //printf("{");
+      for (int j=0; j< n-1; j++){ 
+        perm[j] = U[(i+j) % len];
+        sum += perm[j];
+        //printf("%d,",perm[j]);
+      }
+      // Find the missing symbol 1..n in the permutation using 
+      // the fact that ∑n = n(n+1)/2 and ∑window = ∑n - missing
+      // So missing = ∑n - ∑window
+      int missing = (n * (n + 1) / 2) - sum;
+      perm[n-1] = missing;
+
+      //printf("}\n");
+      rank = rankRuskeyWilliams(perm, n);
+      //printf("r: %d\n", rank);
+    }
+    
 
     // If the rank is invalid or we have seen this rank before
     // then the given string is not a universal cycle
-    if (r < 0 || seen[r]) {
-      free(seen);
-      return 0;
+    if (rank < 0 || rank >= len || seen[rank]) {
+        free(seen);
+        return 0;
     }
-
     // Otherwise mark this rank as seen
-    seen[r] = 1;
+    seen[rank] = 1;
   }
-
-  // Check if we have seen all ranks and if we have then we know
-  // that the given string is a universal cycle
-  //for (int i = 0; i < len; i++) if (!seen[i]) return 0;
 
   free(seen);
   return 1;
 }
-
+  
 int main(void){
   int n;
   printf("Enter n: ");
@@ -209,17 +202,38 @@ int main(void){
   printf("UC: ");
   for (int i = 0; i < (factorial(n)); i++) printf("%d", UC[i]);
   printf("\n");
+  free(UC);
 
 
-  char *test[] = { 
-      "321312","3",
-      "432142134132431241234231", "4",
-      NULL};
+  int test1[] = {3,2,1,3,1,2};               
+  int test2[] = {4,3,2,1,4,2,1,3,4,1,3,2,4,3,1,2,4,1,2,3,4,2,3,1};
 
+  struct {
+      int *U;
+      int L;
+      int  n;
+  } tests[] = {
+      { test1, sizeof(test1) / sizeof(test1[0]), 3 },
+      { test2, sizeof(test2) / sizeof(test2[0]), 4 },
+      { NULL,    0 }   
+  };
 
-  for (int i = 0; test[i]; i+=2) {
-    printf("U=\"%s\"  n=%d  -> %s\n", test[i], atoi(test[i+1]),
-           isUniversalCycle(test[i], atoi(test[i+1])) ? "YES" : "no");
+  for (int i = 0; tests[i].U; i++) {
+      char valid = 1;
+      int *U = tests[i].U;
+      int L = tests[i].L; 
+      int  n = tests[i].n;
+      unsigned long len = factorial(n);
+
+      // print U in “{3,2,1,3,1,2}” style
+      printf("U={");
+      for (int j = 0; j < len; j++) {
+          printf("%d", U[j]);
+          if (j + 1 < len) printf(",");
+      }
+      printf("}  n=%d  ->  %s\n",
+             n,
+            isUniversalCycle(U, L, n) ? "YES" : "no");
   }
 
   fprintf(stderr,"start\n");
@@ -233,6 +247,7 @@ int main(void){
       {1,2,3},
       {2,3,1},
     };
+
     for (int i = 0; i < 6; i++) {
         int *p = perms[i];
         int rk = rankRuskeyWilliams(p, 3);
