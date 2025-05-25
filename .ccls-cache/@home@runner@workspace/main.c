@@ -1,9 +1,10 @@
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int RuskeyWilliamsRecursive(int *alpha, int *beta, int n, int k);
+int RuskeyWilliamsRecursive(int *alpha, int *beta, int n);
+int rankRuskeyWilliams(int *p, int n);
+int rankLehmer(char *U, int L, int n, int start);
 
 // Helper function to compute n!
 unsigned long factorial(unsigned int n){
@@ -18,12 +19,17 @@ void rotate_n(int *p, int n){
   p[n-1] = first;
 }
 
-// Helper function to rotate a string of size n to the 
+// Helper function to rotate a string of size n to the right
 int * sigma(int *p, int n){
-  int last = p[n-1];
-  for(int i = n-1; i > 0; i--) p[i] = p[i-1];
-  p[0] = last;
-  return p;
+  if (n <= 0) return NULL;
+
+  int * right = malloc(n * sizeof(int));
+  if (!right) return NULL;
+  
+  // Rotate the array to the right
+  right[0] = p[n-1];
+  for(int i = n-1; i > 0; i--) right[i] = p[i-1]; 
+  return right;
 }
 
 // Helper function to rotate a string of size n while 
@@ -92,7 +98,7 @@ char * genBitString(int n){
   free(a);
   free(d);
   free(f);
-  
+
   return bitstring;
 }
 
@@ -108,7 +114,7 @@ int * generateUniversalCycle(int n){
   // Generate Sₙ into bitstring[] 
   char * bitstring = genBitString(n);
   if (bitstring == NULL) return NULL;
-  
+
   // Initialize the starting permutation to n, n-1, ..., 1
   int *perm = malloc(n * sizeof(int));
   for(int i = 0; i < n; i++) perm[i] = n-i;
@@ -118,7 +124,7 @@ int * generateUniversalCycle(int n){
 
   // Check if memory allocation was successful
   if (!UC || !perm) return NULL;
-  
+
   // Walk through the bitstring and apply the σₙ/σₙ₋₁
   // rotations to the starting permutation to generate
   // the universal cycle
@@ -127,8 +133,8 @@ int * generateUniversalCycle(int n){
     if (bitstring[i] == '0') rotate_n(perm, n);
     else rotate_n_minus_1(perm, n);
   }
- 
-  
+
+
   // Clean up
   free(perm);
 
@@ -142,154 +148,18 @@ int * generateUniversalCycle(int n){
   return UC;
 }
 
-// Given U of length L and parameters n, rank the substring of length n-1
-// starting at index 'start' (circularly).  Returns a rank in [0..n!-1] or 
-// -1 if the string is invalid
-int rankLehmer(char *U, int L, int n, int start){
-  char used[n]; // tracks which of 1..n appear in the substring
-  memset(used, 0, sizeof(char) * n); // initialize to false
-  int window[n], w = 0, sum = 0; 
 
-  
-  // Collect the n-1 symbols from U and verify that 
-  // they are in 1..n and distinct
-  for (int t = 0; t < n - 1; t++){
-    char c = U[(start + t) % L];
 
-    // Make sure that they are within 1...n
-    if (c < '1' || c >= '1' + n) return -1;     
-
-    // Convert to 0..n-1 to make indexing easier
-    int x = c - '1'; 
-    // Make sure this is not a duplicate symbol 
-    if (used[x]) return -1; 
-    used[x] = 1; // mark as seen
-    sum += x + 1; // sum of the symbols of the permutation
-    window[w++] = x + 1; // store as 1..n
-  }
-
-  // Find the missing symbol 1..n in the permutation using 
-  // the fact that ∑n = n(n+1)/2 and ∑window = ∑n - missing
-  // So missing = ∑n - ∑window
-  int missing = (n * (n + 1) / 2) - sum;
-
-  // Now we can build the full permutation pi[0..n-1]
-  // by appending the missing symbol to the window
-  int pi[n];
-  for (int i = 0; i < n - 1; i++) pi[i] = window[i];
-  pi[n - 1] = missing;
-
-  // Compute its Lehmer‐code rank in [0..n!-1]
-  int rank = 0;
-  unsigned long fact = factorial(n - 1);
-  for (int i = 0; i < n; i++) {
-    int smaller = 0;
-    
-    // Count how many of the remaining symbols are smaller than pi[i]
-    for (int j = i + 1; j < n; j++) if (pi[j] < pi[i]) smaller++;
-
-    // Update the rank
-    rank += smaller * fact;
-    if (i < n - 1) fact /= (n - 1 - i);
-  }
-  
-  return rank;
-}
-
-// Given U of length L and parameters n, rank the substring of length n-1
-// starting at index 'start' (circularly).  Returns a rank in [0..n!-1] or 
-// -1 if the string is invalid
-int rankRuskeyWilliams(char *U, int L, int n, int start){
-  // Base case for n = 1
-  if (n == 1) return 0;
-
-  // n is the number of symbols in the permutation
-  // k is the position of n in the permutation
-
-  char used[n]; // tracks which of 1..n appear in the substring
-  memset(used, 0, sizeof(char) * n); // initialize to false
-  int k = -1; // To keep track of where n is in the permutation
-  int window[n], w = 0, sum = 0; 
-
-  // Collect the n-1 symbols from U and verify that 
-  // they are in 1..n and distinct
-  for (int t = 0; t < n - 1; t++){
-    char c = U[(start + t) % L];
-
-    // Make sure that they are within 1...n
-    if (c < '1' || c >= '1' + n) return -1;     
-
-    // Convert to 0..n-1 to make indexing easier
-    int x = c - '1'; 
-    // Make sure this is not a duplicate symbol 
-    if (used[x]) return -1; 
-    used[x] = 1; // mark as seen
-    if (x == n - 1) k = t; // keep track of where n is
-    sum += x + 1; // sum of the symbols of the permutation
-    window[w++] = x + 1; // store as 1..n
-  }
-
-  // If n was not found in the substring then we know that it is 
-  // the missing symbol and we can set k to the last position
-  if (k == -1) k = n - 1;
-
-  // Find the missing symbol 1..n in the permutation using 
-  // the fact that ∑n = n(n+1)/2 and ∑window = ∑n - missing
-  // So missing = ∑n - ∑window
-  int missing = (n * (n + 1) / 2) - sum;
-
-  // Now we can build the full permutation pi[0..n-1]
-  // by appending the missing symbol to the window
-  int pi[n];
-  for (int i = 0; i < n - 1; i++) pi[i] = window[i];
-  pi[n - 1] = missing;
-
-  // Now we have the permutation saved as a int array and the 
-  // values of n and k thus we can compute the rank
-  return RuskeyWilliamsRecursive(pi, n, k);
-  if (k == 1) return n * 2;
-
-  return 0;
-  return n;
-}
-int RuskeyWilliamsRecursive(int *alpha, int *beta, int n, int k){
-  int lenAlpha = 0, lenBeta = 0;
-  // Compute the length of alpha and beta
-  if (alpha != NULL && beta != NULL){
-    for (int i = 0; i < n; i++){
-      if (alpha[i] != 0) lenAlpha++;
-      if (beta[i] != 0) lenBeta++;
-    }
-  }else if (beta != NULL){ 
-    for (int i = 0; i < n; i++){
-      if (beta[i] != 0) lenBeta++;
-    }
-  }else if (alpha != NULL){
-    for (int i =0; i < n; i++){
-      if (alpha[i] != 0) lenAlpha++;
-    }
-  }else{
-    // Base case: α = β = ε   
-    return 0;
-  }
-
-  // Case α = ε
-  if (lenAlpha == 0) return n * RuskeyWilliamsRecursive(NULL, beta, n, k);
-
-  return n - lenAlpha + n * RuskeyWilliamsRecursive( sigma(beta, lenBeta), alpha, n, k);
-    
-  
-}
 // Return true if U of length L is a valid shorthand U-cycle for Π(n)
 char isUniversalCycle(char *U, int n){
 
   // Compute the length of U
   int len = strlen(U);
 
-  
+
   // First check if the length of U is correct
   if (len != factorial(n)) return 0;
-  
+
   // System error: want to use calloc here however for some reason this results
   // in a malloc(): corrupted top size error. Swtich malloc to calloc in
   // final version if it does not result in errors.
@@ -300,7 +170,7 @@ char isUniversalCycle(char *U, int n){
     printf("Error: memory allocation failed\n");
     return 0;
   }
-  
+
   for (int i = 0; i < len; i++) {
     // Call ranking function
     int r = rankLehmer(U, len, n, i);
@@ -311,7 +181,7 @@ char isUniversalCycle(char *U, int n){
       free(seen);
       return 0;
     }
-    
+
     // Otherwise mark this rank as seen
     seen[r] = 1;
   }
@@ -340,17 +210,41 @@ int main(void){
   for (int i = 0; i < (factorial(n)); i++) printf("%d", UC[i]);
   printf("\n");
 
-  
+
   char *test[] = { 
       "321312","3",
       "432142134132431241234231", "4",
       NULL};
 
-  
+
   for (int i = 0; test[i]; i+=2) {
     printf("U=\"%s\"  n=%d  -> %s\n", test[i], atoi(test[i+1]),
            isUniversalCycle(test[i], atoi(test[i+1])) ? "YES" : "no");
   }
 
+  fprintf(stderr,"start\n");
+
+
+    int perms[6][3] = {
+      {3,2,1},
+      {2,1,3},
+      {1,3,2},
+      {3,1,2},
+      {1,2,3},
+      {2,3,1},
+    };
+    for (int i = 0; i < 6; i++) {
+        int *p = perms[i];
+        int rk = rankRuskeyWilliams(p, 3);
+        printf("%d: %d %d %d  → rank %d\n",
+               i, p[0],p[1],p[2], rk);
+    }
+
+
+
+  fprintf(stderr,"Done\n");
+
   return 0;
 }
+
+
