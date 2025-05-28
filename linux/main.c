@@ -15,8 +15,6 @@ unsigned long long factorial(unsigned int n){
   return f;
 }
 
-
-
 // Return 1 if U[0..] of length n! is a valid shorthand U‑cycle for Π(n), 0 otherwise
 int isUniversalCycle(int *U, unsigned long long L, int n){
   unsigned long long len = factorial(n);
@@ -131,10 +129,49 @@ int main(int argc, char **argv){
   int n;
   printf("Enter n: ");
   scanf("%d", &n);
-  
+  // 123132
+  // 123132
+  //12,13,23,21,31
   // Compute and store n! in global memory so
   // we only have to calculate it one time
   fact = factorial(n);
+
+  int *perm = malloc(n * sizeof(int));
+    for (int i = 0; i < n; ++i)
+        perm[i] = i + 1;
+
+    int total = 1;
+    for (int i = 2; i <= n; ++i)
+        total *= i;
+
+    int *sp_cycle = malloc(total * (n - 1) * sizeof(int));
+    int count = 0;
+
+    bell7(perm, n, 2, sp_cycle, &count);
+
+    // 123412431234142314321423
+
+    printf("Shorthand Universal Cycle for n=%d:\n", n);
+    for (int i = 0; i < total; ++i) {
+        for (int j = 0; j < n - 1; ++j)
+            printf("%d", sp_cycle[i * (n - 1) + j]);
+    }
+    printf("\n");
+    for (int i = 0; i < total; ++i) {
+        printf("Cycle %d: ", i + 1);
+        for (int j = 0; j < n - 1; j++)
+            printf("%d ", sp_cycle[i * (n - 1) + j]);
+        printf("\n");
+    }
+    printf("UC: ");
+    for (int i = 0; i < total; ++i) {
+          printf("%d,", sp_cycle[i * (n - 1) + 1]);
+      
+    }
+    printf("\n");
+    free(perm);
+    free(sp_cycle);
+
 
   int *UC = generateUniversalCycle(n);
   if (UC == NULL){
@@ -161,8 +198,8 @@ int main(int argc, char **argv){
   
 
 
-  int test1[] = {3,2,1,3,1,2};               
-  int test2[] = {4,3,2,1,4,2,1,3,4,1,3,2,4,3,1,2,4,1,2,3,4,2,3,1};
+  int test1[] = {1,2,3,1,3,2};               
+  int test2[] = {2,3,4,1,2,4,3,1,2,3,4,1,4,2,3,1,4,3,2,1,4,2,3,1};
 
   struct {
       int *U;
