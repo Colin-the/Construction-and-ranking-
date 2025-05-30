@@ -72,10 +72,6 @@ char * genBitString(int n){
     // Add null terminator for ease of use 
     bitstring[bitlen] = '\0';
 
-    // If desired print the bitstring and its length
-    //printf("bitstring: %s\n", bitstring);
-    //printf("bitlen: %lld\n", bitlen);
-
     // Clean up allocated memory
     free(a);
     free(d);
