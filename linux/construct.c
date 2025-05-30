@@ -127,28 +127,3 @@ int * generateUniversalCycle(int n){
 
     return UC;
 }
-
-void visit(int *perm, int n, int *sp_cycle, int *count) {
-    for (int i = 0; i < n - 1; ++i)
-        sp_cycle[*count * (n - 1) + i] = perm[i];
-    (*count)++;
-}
-
-void bell7(int *perm, int n, int m, int *sp_cycle, int *count) {
-    if (m == n + 1) {
-        visit(perm, n, sp_cycle, count);
-        return;
-    }
-
-    bell7(perm, n, m + 1, sp_cycle, count);
-
-    for (int i = m - 2; i >= 0; --i) {
-        // Perform prefix-rotation: rotate perm[0..m-1] to the left by 1
-        int tmp = perm[0];
-        for (int j = 0; j < m - 1; ++j)
-            perm[j] = perm[j + 1];
-        perm[m - 1] = tmp;
-
-        bell7(perm, n, m + 1, sp_cycle, count);
-    }
-}
