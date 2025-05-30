@@ -129,49 +129,10 @@ int main(int argc, char **argv){
   int n;
   printf("Enter n: ");
   scanf("%d", &n);
-  // 123132
-  // 123132
-  //12,13,23,21,31
+
   // Compute and store n! in global memory so
   // we only have to calculate it one time
   fact = factorial(n);
-
-  int *perm = malloc(n * sizeof(int));
-    for (int i = 0; i < n; ++i)
-        perm[i] = i + 1;
-
-    int total = 1;
-    for (int i = 2; i <= n; ++i)
-        total *= i;
-
-    int *sp_cycle = malloc(total * (n - 1) * sizeof(int));
-    int count = 0;
-
-    bell7(perm, n, 2, sp_cycle, &count);
-
-    // 123412431234142314321423
-
-    printf("Shorthand Universal Cycle for n=%d:\n", n);
-    for (int i = 0; i < total; ++i) {
-        for (int j = 0; j < n - 1; ++j)
-            printf("%d", sp_cycle[i * (n - 1) + j]);
-    }
-    printf("\n");
-    for (int i = 0; i < total; ++i) {
-        printf("Cycle %d: ", i + 1);
-        for (int j = 0; j < n - 1; j++)
-            printf("%d ", sp_cycle[i * (n - 1) + j]);
-        printf("\n");
-    }
-    printf("UC: ");
-    for (int i = 0; i < total; ++i) {
-          printf("%d,", sp_cycle[i * (n - 1) + 1]);
-      
-    }
-    printf("\n");
-    free(perm);
-    free(sp_cycle);
-
 
   int *UC = generateUniversalCycle(n);
   if (UC == NULL){
